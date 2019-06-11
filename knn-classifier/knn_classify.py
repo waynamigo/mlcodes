@@ -21,35 +21,39 @@ from sklearn.model_selection import train_test_split
 def euclidean_distance(TestIMGs, TrainIMGs):
     testnum = TestIMGs.shape[0]
     trainnum = TrainIMGs.shape[0]
+    # init distance list
     distances = np.zeros((testnum, trainnum))
     for i in range(testnum):
         for j in range(trainnum):
+            # for each testdata(or single image input),using nparray to calculate distances
             distances[i,j]=np.sqrt(np.sum((TestIMGs[i,:]-TrainIMGs[j,:])**2))
     # print('distance',distances)
     return distances
 def predict(TestIMGs, TrainIMGs, Train_Label, k ):
     distances = euclidean_distance(TestIMGs, TrainIMGs)
-    sample_test = TestIMGs.shape[0]
-    prediction = np.zeros(sample_test)
-    for i in range(sample_test):
-        test_row = distances[i,:]
+    testnum = TestIMGs.shape[0]
+    prediction = np.zeros(testnum)
+    # counting the shortest distance and sort it to choose first k label
+    for i in range(testnum):
+        test_row = distances[i,:] #the content of distance is subscript
         sorted_row = np.argsort(test_row)
+        # sorting and print sorted array
         # print('sorted distance subscript:',sorted_row)
         closet_y =Train_Label[sorted_row[0:k]]
-        # print('closed k',closet_y)
+        # using [subscript] select k data from tablelist
+        # transfer np.fload64 to np.int64
         closet_y.astype(np.int64)
+        # select the most frequently occuring labels as most possible class
         prediction[i] = np.argmax(np.bincount(closet_y))
     return prediction
+# using testset splited from dataset to checkout knn algorithm
 def select_set(TestIMGs, Test_Label, TrainIMGs, Train_Label, k):
     prediction = predict(TestIMGs, TrainIMGs, Train_Label, k)
     num_correct = np.sum(prediction == Test_Label)
     print('correct',num_correct)
     accuracy = np.mean(prediction == Test_Label)
-    d = {"k": k,
-         "predictionlist": prediction,
-         "accuracy": accuracy}
-    print d['accuracy']
-    return d
+    return accuracy
+# using dataset to predict one image
 def select_max(requiredIMG, TrainIMGs, Train_Label, k):
     Y_prediction = predict(requiredIMG, TrainIMGs, Train_Label, k)
     if Y_prediction[0]==0:
@@ -60,7 +64,7 @@ def select_max(requiredIMG, TrainIMGs, Train_Label, k):
         print 'this is a horse'
     else:
         print 'this is a rabbit'
-
+# transfer imagename to labels
 def getlabel_splitedbydot(imgpath):
     if imgpath.split()[-1].split('.')[0] == 'cat':
         return 0
@@ -70,6 +74,7 @@ def getlabel_splitedbydot(imgpath):
         return 2
     elif imgpath.split()[-1].split('.')[0] == 'rabbit':
         return 3
+#   train and test dataset to checkout accuracy
 def knn_train_testset(k):
     imagelist = list(os.listdir('data/'))
     imagelist = imagelist[:767]
@@ -90,6 +95,7 @@ def knn_train_testset(k):
         train_test_split(features, labels, test_size=0.20, random_state=100)
     print trainFeat.shape, testFeat.shape, testLabels.shape
     select_set(testFeat,testLabels, trainFeat,trainLabels,k)
+#   indentigy a image
 def identifier(imgpath,k):
     imagelist = list(os.listdir('data/'))
     imagelist = imagelist[:760]
@@ -106,7 +112,7 @@ def identifier(imgpath,k):
     features = np.array(features)
     labels = np.array(labels)
     (TrainIMGs, TestIMGs, TrainLabels, TestLabels) = \
-        train_test_split(features, labels, test_size=0, random_state=30)
+        train_test_split(features, labels, test_size=0, random_state=100)
     inputimage  = cv2.imread(imgpath)
     hsv = cv2.cvtColor(inputimage, cv2.COLOR_BGR2HSV)
     # cv2.imshow('hsvimage',hsv)
@@ -121,11 +127,13 @@ def identifier(imgpath,k):
     imgfeature = np.array(img2histogram)
     # print imgfeature.shape
     select_max(imgfeature, TrainIMGs,TrainLabels, k)
+#    using vgg16 to extract features to predict class of a image
 def identifyby_vgg16_feature(imgbyvgg,k):
     feature_gen = VGG16(
         weights= 'imagenet',
         include_top = False)
     feature_gen.summary()
+    # prepare dataset
     imagelist = list(os.listdir('data/'))
     imagelist = imagelist[:700]
     features = []
@@ -141,15 +149,19 @@ def identifyby_vgg16_feature(imgbyvgg,k):
         x = preprocess_input(x)
         features.append(feature_gen.predict(x))
         labels.append(label)
+    #  transfer to nparray
     features = np.array(features)
     print(features[0].shape)
     labels = np.array(labels)
     # imgbyvgg = 'horse.1.jpg'
     img = image.load_img('data/'+imgbyvgg, target_size=(224, 224))
     x = preprocess_input(np.expand_dims(image.img_to_array(img), axis=0))
-    d = select_max(np.array(feature_gen.predict(x)),features, labels, k)
-    print d
-
+    # checking result
+    result = select_max(np.array(feature_gen.predict(x)),features, labels, k)
+    print result
+'''
+using argparse to make it easy to use
+'''
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-fp", dest="imagename",
