@@ -17,34 +17,6 @@ from keras.applications import VGG16
 from keras.applications.vgg16 import preprocess_input
 from keras.preprocessing import image
 from sklearn.model_selection import train_test_split
-def identifyby_vgg16_feature(imgbyvgg):
-    feature_gen = VGG16(
-        weights= 'imagenet',
-        include_top = False)
-    feature_gen.summary()
-    imagelist = list(os.listdir('data/'))
-    imagelist = imagelist[:20]
-    features = []
-    labels =[]
-    for imagename in imagelist:
-        # load the image and extract the class label (assuming that our
-        path = 'data/' + imagename
-        print path
-        label = getlabel_splitedbydot(imagename)
-        img = image.load_img(path, target_size=(224, 224))
-        x = image.img_to_array(img)
-        x = np.expand_dims(x, axis=0)
-        x = preprocess_input(x)
-        features.append(feature_gen.predict(x))
-        labels.append(label)
-    features = np.array(features)
-    print(features[0].shape)
-    labels = np.array(labels)
-    # imgbyvgg = 'horse.1.jpg'
-    img = image.load_img('data/'+imgbyvgg, target_size=(224, 224))
-    x = preprocess_input(np.expand_dims(image.img_to_array(img), axis=0))
-    d = select_max(np.array(feature_gen.predict(x)),features, labels, k=6)
-    print d
 
 def euclidean_distance(TestIMGs, TrainIMGs):
     testnum = TestIMGs.shape[0]
@@ -53,7 +25,7 @@ def euclidean_distance(TestIMGs, TrainIMGs):
     for i in range(testnum):
         for j in range(trainnum):
             distances[i,j]=np.sqrt(np.sum((TestIMGs[i,:]-TrainIMGs[j,:])**2))
-    print('distance',distances)
+    # print('distance',distances)
     return distances
 def predict(TestIMGs, TrainIMGs, Train_Label, k ):
     distances = euclidean_distance(TestIMGs, TrainIMGs)
@@ -62,9 +34,9 @@ def predict(TestIMGs, TrainIMGs, Train_Label, k ):
     for i in range(sample_test):
         test_row = distances[i,:]
         sorted_row = np.argsort(test_row)
-        print('sorted distance subscript:',sorted_row)
+        # print('sorted distance subscript:',sorted_row)
         closet_y =Train_Label[sorted_row[0:k]]
-        print('closed k',closet_y)
+        # print('closed k',closet_y)
         closet_y.astype(np.int64)
         prediction[i] = np.argmax(np.bincount(closet_y))
     return prediction
@@ -76,6 +48,7 @@ def select_set(TestIMGs, Test_Label, TrainIMGs, Train_Label, k):
     d = {"k": k,
          "predictionlist": prediction,
          "accuracy": accuracy}
+    print d['accuracy']
     return d
 def select_max(requiredIMG, TrainIMGs, Train_Label, k):
     Y_prediction = predict(requiredIMG, TrainIMGs, Train_Label, k)
@@ -97,7 +70,7 @@ def getlabel_splitedbydot(imgpath):
         return 2
     elif imgpath.split()[-1].split('.')[0] == 'rabbit':
         return 3
-def knn_train_testset():
+def knn_train_testset(k):
     imagelist = list(os.listdir('data/'))
     imagelist = imagelist[:767]
     features = []
@@ -107,18 +80,17 @@ def knn_train_testset():
         img = cv2.imread(path)
         label = getlabel_splitedbydot(imagename)
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist([hsv], [0, 1, 2], None, (24, 24, 24), [0, 180, 0, 256, 0, 256])
+        hist = cv2.calcHist([hsv], [0, 1, 2], None, (8, 8, 8), [0, 180, 0, 256, 0, 256])
         cv2.normalize(hist, hist)
         hist.flatten()
         features.append(hist), labels.append(label)
     features = np.array(features)
     labels = np.array(labels)
     (trainFeat, testFeat, trainLabels, testLabels) = \
-        train_test_split(features, labels, test_size=0.20, random_state=30)
+        train_test_split(features, labels, test_size=0.20, random_state=100)
     print trainFeat.shape, testFeat.shape, testLabels.shape
-    d = select_set(testFeat,testLabels, trainFeat,trainLabels,k=5)
-    print d
-def identifier(imgpath):
+    select_set(testFeat,testLabels, trainFeat,trainLabels,k)
+def identifier(imgpath,k):
     imagelist = list(os.listdir('data/'))
     imagelist = imagelist[:760]
     features = []
@@ -137,6 +109,8 @@ def identifier(imgpath):
         train_test_split(features, labels, test_size=0, random_state=30)
     inputimage  = cv2.imread(imgpath)
     hsv = cv2.cvtColor(inputimage, cv2.COLOR_BGR2HSV)
+    # cv2.imshow('hsvimage',hsv)
+    # cv2.waitKey()
     '''
     cv2.calcHist(params[]) 
     params  H/S/V,mask ,null ,HSV corresponding bin(s)   ,pixels'range (0-180,0-256,0-256)
@@ -145,8 +119,36 @@ def identifier(imgpath):
     cv2.normalize(img2histogram, img2histogram)
     img2histogram.flatten()
     imgfeature = np.array(img2histogram)
-    print imgfeature.shape
-    select_max(imgfeature, TrainIMGs,TrainLabels, k=5)
+    # print imgfeature.shape
+    select_max(imgfeature, TrainIMGs,TrainLabels, k)
+def identifyby_vgg16_feature(imgbyvgg,k):
+    feature_gen = VGG16(
+        weights= 'imagenet',
+        include_top = False)
+    feature_gen.summary()
+    imagelist = list(os.listdir('data/'))
+    imagelist = imagelist[:700]
+    features = []
+    labels =[]
+    for imagename in imagelist:
+        # load the image and extract the class label (assuming that our
+        path = 'data/' + imagename
+        print path
+        label = getlabel_splitedbydot(imagename)
+        img = image.load_img(path, target_size=(224, 224))
+        x = image.img_to_array(img)
+        x = np.expand_dims(x, axis=0)
+        x = preprocess_input(x)
+        features.append(feature_gen.predict(x))
+        labels.append(label)
+    features = np.array(features)
+    print(features[0].shape)
+    labels = np.array(labels)
+    # imgbyvgg = 'horse.1.jpg'
+    img = image.load_img('data/'+imgbyvgg, target_size=(224, 224))
+    x = preprocess_input(np.expand_dims(image.img_to_array(img), axis=0))
+    d = select_max(np.array(feature_gen.predict(x)),features, labels, k)
+    print d
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -154,13 +156,16 @@ if __name__ == '__main__':
                         help="input filename and dealwith it plainly")
     parser.add_argument("-vgg16", dest="imgbyvgg",
                         help="input filename and extract features with vgg16")
+    parser.add_argument("-k",dest = "k_value",
+                        help=" input k to choose nearest label")
     args = parser.parse_args()
     if args.imagename:
         imgpath  = 'data/'+ args.imagename
         print imgpath
-        identifier(imgpath)
-    elif args.imgbyvgg:
-        identifyby_vgg16_feature(args.imgbyvgg)
+        identifier(imgpath,int(args.k_value))
+    elif args.imgbyvgg :
+        identifyby_vgg16_feature(args.imgbyvgg,int(args.k_value))
     else:
         #default running on train/test_dataset
-        knn_train_testset()
+        # print args.k_value
+        knn_train_testset(int(args.k_value))
